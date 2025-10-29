@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -25,7 +26,6 @@ async function main() {
   console.log('✅ Роли созданы');
 
   // Создание администратора
-  const bcrypt = require('bcryptjs');
   const adminPasswordHash = await bcrypt.hash('Admin12345!', 10);
 
   const adminUser = await prisma.user.upsert({

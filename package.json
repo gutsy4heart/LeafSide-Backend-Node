@@ -12,7 +12,13 @@
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts"
   },
-  "keywords": ["api", "express", "typescript", "jwt", "postgresql"],
+  "keywords": [
+    "api",
+    "express",
+    "typescript",
+    "jwt",
+    "postgresql"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
@@ -32,7 +38,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.6",
-    "@types/node": "^20.14.11",
+    "@types/node": "^20.19.24",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.6",
     "prisma": "^5.19.1",
@@ -40,4 +46,3 @@
     "typescript": "^5.5.4"
   }
 }
-
