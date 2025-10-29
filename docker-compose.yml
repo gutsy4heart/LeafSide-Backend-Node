@@ -1,0 +1,20 @@
+version: "3.9"
+services:
+  db_node:
+    image: postgres:16
+    container_name: leafside_db_node
+    environment:
+      POSTGRES_USER: leafuser
+      POSTGRES_PASSWORD: leafpass
+      POSTGRES_DB: leafsidedb_node
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata_node:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leafuser -d leafsidedb_node"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  pgdata_node:

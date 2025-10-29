@@ -1,4 +1,4 @@
-// Prisma schema для LeafSide
+// Prisma schema для LeafSide - синхронизирован с существующими таблицами C# проекта
 
 generator client {
   provider = "prisma-client-js"
@@ -9,140 +9,201 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Таблица пользователей (расширяет стандартную таблицу Identity)
+// Пользователи (соответствует AspNetUsers)
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  username      String   @unique
-  passwordHash  String
-  firstName     String   @default("")
-  lastName      String   @default("")
-  phoneNumber   String   @default("")
-  countryCode   String   @default("")
-  gender        String   @default("")
-  emailConfirmed Boolean @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // Роли
-  roles         UserRole[]
+  id                      String   @id @default(uuid()) @map("Id")
+  userName                String?   @map("UserName")
+  normalizedUserName      String?   @map("NormalizedUserName")
+  email                   String?   @map("Email")
+  normalizedEmail         String?   @map("NormalizedEmail")
+  emailConfirmed          Boolean  @map("EmailConfirmed")
+  passwordHash            String?  @map("PasswordHash")
+  securityStamp           String?  @map("SecurityStamp")
+  concurrencyStamp        String?  @map("ConcurrencyStamp")
+  phoneNumber             String?  @map("PhoneNumber")
+  phoneNumberConfirmed    Boolean  @map("PhoneNumberConfirmed")
+  twoFactorEnabled        Boolean  @map("TwoFactorEnabled")
+  lockoutEnd              DateTime? @map("LockoutEnd")
+  lockoutEnabled          Boolean  @map("LockoutEnabled")
+  accessFailedCount       Int      @map("AccessFailedCount")
+  
+  // Дополнительные поля AppUser
+  firstName               String  @map("FirstName")
+  lastName                String  @map("LastName")
+  countryCode             String  @map("CountryCode")
+  gender                  String  @map("Gender")
+  createdAt               DateTime @map("CreatedAt")
 
   // Связи
-  cart          Cart?
-  orders        Order[]
+  roles                   UserRole[]
+  claims                  UserClaim[]
+  logins                  UserLogin[]
+  tokens                  UserToken[]
+  cart                    Cart?
+  orders                  Order[]
 
-  @@map("users")
+  @@index([normalizedEmail])
+  @@unique([normalizedUserName])
+  @@map("AspNetUsers")
 }
 
-// Роли пользователей
+// Роли (соответствует AspNetRoles)
 model Role {
-  id        String      @id @default(uuid())
-  name      String      @unique
-  userRoles UserRole[]
+  id                String        @id @default(uuid()) @map("Id")
+  name              String?       @map("Name")
+  normalizedName    String?       @map("NormalizedName")
+  concurrencyStamp  String?       @map("ConcurrencyStamp")
+  
+  // Связи
+  userRoles         UserRole[]
+  roleClaims        RoleClaim[]
 
-  @@map("roles")
+  @@unique([normalizedName])
+  @@map("AspNetRoles")
 }
 
-// Связь многие-ко-многим между User и Role
+// Связь User-Role (соответствует AspNetUserRoles)
 model UserRole {
-  userId    String
-  roleId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  userId    String @map("UserId")
+  roleId    String @map("RoleId")
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, roleId])
   @@id([userId, roleId])
-  @@map("user_roles")
+  @@index([roleId])
+  @@map("AspNetUserRoles")
+}
+
+// Role Claims (соответствует AspNetRoleClaims)
+model RoleClaim {
+  id        Int    @id @default(autoincrement()) @map("Id")
+  roleId    String @map("RoleId")
+  claimType String? @map("ClaimType")
+  claimValue String? @map("ClaimValue")
+  role      Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@index([roleId])
+  @@map("AspNetRoleClaims")
+}
+
+// User Claims (соответствует AspNetUserClaims)
+model UserClaim {
+  id         Int     @id @default(autoincrement()) @map("Id")
+  userId     String  @map("UserId")
+  claimType String? @map("ClaimType")
+  claimValue String? @map("ClaimValue")
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("AspNetUserClaims")
+}
+
+// User Logins (соответствует AspNetUserLogins)
+model UserLogin {
+  userId            String @map("UserId")
+  loginProvider     String @map("LoginProvider")
+  providerKey      String @map("ProviderKey")
+  providerDisplayName String? @map("ProviderDisplayName")
+  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([loginProvider, providerKey])
+  @@index([userId])
+  @@map("AspNetUserLogins")
+}
+
+// User Tokens (соответствует AspNetUserTokens)
+model UserToken {
+  userId        String  @map("UserId")
+  loginProvider String  @map("LoginProvider")
+  name          String  @map("Name")
+  value         String? @map("Value")
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, loginProvider, name])
+  @@map("AspNetUserTokens")
 }
 
 // Книги
 model Book {
-  id          String    @id @default(uuid())
-  title       String
-  description String
-  author      String
-  genre       String
-  publishing  String
-  created     String    // Год издания (строка)
-  imageUrl    String    @default("")
-  price       Decimal?  @db.Decimal(10, 2)
-  isbn        String    @default("")
-  language    String    @default("Russian")
-  pageCount   Int       @default(0)
-  isAvailable Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id          String    @id @default(uuid()) @map("Id")
+  title       String    @map("Title")
+  description String    @map("Description")
+  author      String    @map("Author")
+  genre       String    @map("Genre")
+  publishing  String    @map("Publishing")
+  created     String    @map("Created")
+  imageUrl    String    @map("ImageUrl")
+  price       Decimal?  @map("Price") @db.Decimal(10, 2)
+  isbn        String    @map("Isbn")
+  language    String    @map("Language")
+  pageCount   Int       @map("PageCount")
+  isAvailable Boolean   @map("IsAvailable")
+  createdAt   DateTime  @map("CreatedAt")
+  updatedAt   DateTime  @map("UpdatedAt")
 
   // Связи
   cartItems   CartItem[]
   orderItems  OrderItem[]
 
-  @@map("books")
+  @@map("Books")
 }
 
 // Корзина
 model Cart {
-  id        String     @id @default(uuid())
-  userId    String     @unique
+  id        String     @id @default(uuid()) @map("Id")
+  userId    String     @unique @map("UserId")
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   items     CartItem[]
-  createdAt DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
 
-  @@map("carts")
+  @@map("Carts")
 }
 
 // Элементы корзины
 model CartItem {
-  id            String   @id @default(uuid())
-  cartId        String
+  id            String   @id @default(uuid()) @map("Id")
+  cartId        String   @map("CartId")
   cart          Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  bookId        String
+  bookId        String   @map("BookId")
   book          Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  quantity      Int
-  priceSnapshot Decimal? @db.Decimal(10, 2) // Цена на момент добавления
+  quantity      Int      @map("Quantity")
+  priceSnapshot Decimal? @map("PriceSnapshot") @db.Decimal(10, 2)
 
-  @@unique([cartId, bookId])
-  @@map("cart_items")
+  @@index([bookId])
+  @@index([cartId])
+  @@map("CartItems")
 }
 
 // Заказы
 model Order {
-  id              String      @id @default(uuid())
-  userId          String
+  id              String      @id @default(uuid()) @map("Id")
+  userId          String      @map("UserId")
   user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status          OrderStatus @default(PENDING)
-  totalAmount     Decimal     @db.Decimal(10, 2)
-  shippingAddress String      @default("")
-  customerName    String      @default("")
-  customerEmail   String      @default("")
-  customerPhone   String      @default("")
-  notes           String?     @default("")
+  status          String      @map("Status")
+  totalAmount     Decimal     @map("TotalAmount") @db.Decimal(10, 2)
+  shippingAddress String      @map("ShippingAddress")
+  customerName    String      @map("CustomerName")
+  customerEmail   String      @map("CustomerEmail")
+  customerPhone   String?     @map("CustomerPhone")
+  notes           String?     @map("Notes")
+  createdAt       DateTime    @map("CreatedAt")
+  updatedAt       DateTime    @map("UpdatedAt")
   items           OrderItem[]
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
 
-  @@map("orders")
+  @@map("Orders")
 }
 
 // Элементы заказа
 model OrderItem {
-  id            String   @id @default(uuid())
-  orderId       String
-  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  bookId        String
-  book          Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  quantity      Int
-  priceSnapshot Decimal  @db.Decimal(10, 2) // Цена на момент заказа
+  id         String   @id @default(uuid()) @map("Id")
+  orderId    String   @map("OrderId")
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  bookId     String   @map("BookId")
+  book       Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  quantity   Int      @map("Quantity")
+  unitPrice  Decimal  @map("UnitPrice") @db.Decimal(10, 2)
+  totalPrice Decimal  @map("TotalPrice") @db.Decimal(10, 2)
 
-  @@map("order_items")
+  @@index([bookId])
+  @@index([orderId])
+  @@map("OrderItems")
 }
-
-enum OrderStatus {
-  PENDING
-  PROCESSING
-  SHIPPED
-  DELIVERED
-  CANCELLED
-}
-

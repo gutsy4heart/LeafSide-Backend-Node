@@ -14,7 +14,7 @@ declare global {
 /**
  * Middleware для проверки аутентификации
  */
-export function authenticate(req: Request, res: Response, next: NextFunction) {
+export function authenticate(req: Request, _res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization;
 
@@ -38,7 +38,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
 /**
  * Middleware для проверки роли администратора
  */
-export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+export function requireAdmin(req: Request, _res: Response, next: NextFunction) {
   if (!req.user) {
     return next(new UnauthorizedError('Не авторизован'));
   }

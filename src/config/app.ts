@@ -9,7 +9,8 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
 
   // Database
-  databaseUrl: process.env.DATABASE_URL || 'postgresql://leafuser:leafpass@localhost:5432/leafsidedb?schema=public',
+  // By default, point to the dedicated Node.js DB container (see docker-compose.yml in this folder)
+  databaseUrl: process.env.DATABASE_URL || 'postgresql://leafuser:leafpass@localhost:5433/leafsidedb_node?schema=public',
 
   // JWT
   jwt: {

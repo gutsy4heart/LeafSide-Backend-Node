@@ -1,6 +1,6 @@
 import prisma from '../config/database';
 import { hashPassword, verifyPassword } from '../utils/password';
-import { generateToken, verifyToken, JWTPayload } from '../utils/jwt';
+import { generateToken, verifyToken } from '../utils/jwt';
 import { BadRequestError, UnauthorizedError, NotFoundError } from '../utils/errors';
 
 export interface RegisterData {
@@ -23,9 +23,10 @@ class AuthService {
    * Регистрация нового пользователя
    */
   async register(data: RegisterData) {
-    // Проверяем, существует ли пользователь
-    const existingUser = await prisma.user.findUnique({
-      where: { email: data.email },
+    // Проверяем, существует ли пользователь (по normalizedEmail)
+    const normalizedEmail = data.email.toUpperCase();
+    const existingUser = await prisma.user.findFirst({
+      where: { normalizedEmail },
     });
 
     if (existingUser) {
@@ -39,7 +40,9 @@ class AuthService {
     const user = await prisma.user.create({
       data: {
         email: data.email,
-        username: data.email, // Используем email как username
+        userName: data.email, // Используем email как username
+        normalizedUserName: data.email.toUpperCase(),
+        normalizedEmail: data.email.toUpperCase(),
         passwordHash,
         firstName: data.firstName || '',
         lastName: data.lastName || '',
@@ -47,6 +50,11 @@ class AuthService {
         countryCode: data.countryCode || '',
         gender: data.gender || '',
         emailConfirmed: false,
+        lockoutEnabled: false,
+        accessFailedCount: 0,
+        twoFactorEnabled: false,
+        phoneNumberConfirmed: false,
+        createdAt: new Date(),
       },
       select: {
         id: true,
@@ -57,15 +65,19 @@ class AuthService {
       },
     });
 
-    // Назначаем роль User по умолчанию
-    let userRole = await prisma.role.findUnique({
-      where: { name: 'User' },
+    // Назначаем роль User по умолчанию (ищем по нормализованному имени)
+    const normalizedRoleName = 'USER';
+    let userRole = await prisma.role.findFirst({
+      where: { normalizedName: normalizedRoleName },
     });
 
     // Если роль не существует, создаем её
     if (!userRole) {
       userRole = await prisma.role.create({
-        data: { name: 'User' },
+        data: { 
+          name: 'User',
+          normalizedName: normalizedRoleName,
+        },
       });
     }
 
@@ -81,7 +93,7 @@ class AuthService {
     const roles = ['User'];
     const token = generateToken({
       userId: user.id,
-      email: user.email,
+      email: user.email ?? '',
       roles,
     });
 
@@ -100,9 +112,10 @@ class AuthService {
    * Авторизация пользователя
    */
   async login(data: LoginData) {
-    // Находим пользователя
-    const user = await prisma.user.findUnique({
-      where: { email: data.email },
+    // Находим пользователя по email (ищем по normalizedEmail)
+    const normalizedEmail = data.email.toUpperCase();
+    const user = await prisma.user.findFirst({
+      where: { normalizedEmail },
       include: {
         roles: {
           include: {
@@ -112,7 +125,7 @@ class AuthService {
       },
     });
 
-    if (!user) {
+    if (!user || !user.passwordHash) {
       throw new UnauthorizedError('Неверный email или пароль');
     }
 
@@ -122,13 +135,15 @@ class AuthService {
       throw new UnauthorizedError('Неверный email или пароль');
     }
 
-    // Получаем роли пользователя
-    const roles = user.roles.map((ur: any) => ur.role.name);
+    // Получаем роли пользователя (фильтруем null значения)
+    const roles = user.roles
+      .map((ur: any) => ur.role?.name)
+      .filter((name: string | null) => name !== null) as string[];
 
     // Генерируем токен
     const token = generateToken({
       userId: user.id,
-      email: user.email,
+      email: user.email ?? '',
       roles,
     });
 
@@ -157,32 +172,19 @@ class AuthService {
           },
         },
       },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phoneNumber: true,
-        countryCode: true,
-        gender: true,
-        createdAt: true,
-        roles: {
-          include: {
-            role: true,
-          },
-        },
-      },
     });
 
     if (!user) {
       throw new NotFoundError('Пользователь не найден');
     }
 
-    const roles = user.roles.map((ur: any) => ur.role.name);
+    const roles = user.roles
+      .map((ur: any) => ur.role?.name)
+      .filter((name: string | null) => name !== null) as string[];
 
     return {
       id: user.id,
-      email: user.email,
+      email: user.email ?? '',
       firstName: user.firstName,
       lastName: user.lastName,
       phoneNumber: user.phoneNumber,
@@ -217,12 +219,14 @@ class AuthService {
     }
 
     // Получаем актуальные роли пользователя
-    const roles = user.roles.map((ur: any) => ur.role.name);
+    const roles = user.roles
+      .map((ur: any) => ur.role?.name)
+      .filter((name: string | null) => name !== null) as string[];
 
     // Генерируем новый токен с актуальными данными
     return generateToken({
       userId: user.id,
-      email: user.email,
+      email: user.email ?? '',
       roles,
     });
   }

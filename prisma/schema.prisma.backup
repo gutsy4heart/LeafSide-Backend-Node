@@ -1,0 +1,148 @@
+// Prisma schema для LeafSide
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Таблица пользователей (расширяет стандартную таблицу Identity)
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  username      String   @unique
+  passwordHash  String
+  firstName     String   @default("")
+  lastName      String   @default("")
+  phoneNumber   String   @default("")
+  countryCode   String   @default("")
+  gender        String   @default("")
+  emailConfirmed Boolean @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Роли
+  roles         UserRole[]
+
+  // Связи
+  cart          Cart?
+  orders        Order[]
+
+  @@map("users")
+}
+
+// Роли пользователей
+model Role {
+  id        String      @id @default(uuid())
+  name      String      @unique
+  userRoles UserRole[]
+
+  @@map("roles")
+}
+
+// Связь многие-ко-многим между User и Role
+model UserRole {
+  userId    String
+  roleId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+// Книги
+model Book {
+  id          String    @id @default(uuid())
+  title       String
+  description String
+  author      String
+  genre       String
+  publishing  String
+  created     String    // Год издания (строка)
+  imageUrl    String    @default("")
+  price       Decimal?  @db.Decimal(10, 2)
+  isbn        String    @default("")
+  language    String    @default("Russian")
+  pageCount   Int       @default(0)
+  isAvailable Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Связи
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+
+  @@map("books")
+}
+
+// Корзина
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@map("carts")
+}
+
+// Элементы корзины
+model CartItem {
+  id            String   @id @default(uuid())
+  cartId        String
+  cart          Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  bookId        String
+  book          Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  quantity      Int
+  priceSnapshot Decimal? @db.Decimal(10, 2) // Цена на момент добавления
+
+  @@unique([cartId, bookId])
+  @@map("cart_items")
+}
+
+// Заказы
+model Order {
+  id              String      @id @default(uuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status          OrderStatus @default(PENDING)
+  totalAmount     Decimal     @db.Decimal(10, 2)
+  shippingAddress String      @default("")
+  customerName    String      @default("")
+  customerEmail   String      @default("")
+  customerPhone   String      @default("")
+  notes           String?     @default("")
+  items           OrderItem[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("orders")
+}
+
+// Элементы заказа
+model OrderItem {
+  id            String   @id @default(uuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  bookId        String
+  book          Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  quantity      Int
+  priceSnapshot Decimal  @db.Decimal(10, 2) // Цена на момент заказа
+
+  @@map("order_items")
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+

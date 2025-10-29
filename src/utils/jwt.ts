@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { config } from '../config/app';
 
 export interface JWTPayload {
@@ -11,6 +11,11 @@ export interface JWTPayload {
  * Генерация JWT токена
  */
 export function generateToken(payload: JWTPayload): string {
+  const options: SignOptions = {
+    issuer: config.jwt.issuer,
+    audience: config.jwt.audience,
+    expiresIn: config.jwt.expiresIn as unknown as number,
+  };
   return jwt.sign(
     {
       sub: payload.userId,
@@ -18,11 +23,7 @@ export function generateToken(payload: JWTPayload): string {
       'http://schemas.microsoft.com/ws/2008/06/identity/claims/role': payload.roles,
     },
     config.jwt.secret,
-    {
-      issuer: config.jwt.issuer,
-      audience: config.jwt.audience,
-      expiresIn: config.jwt.expiresIn,
-    }
+    options
   );
 }
 

@@ -4,7 +4,7 @@ import { config } from '../config/app';
 
 export function errorHandler(
   err: Error | AppError,
-  req: Request,
+  _req: Request,
   res: Response,
   next: NextFunction
 ) {

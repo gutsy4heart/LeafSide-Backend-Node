@@ -8,10 +8,10 @@ const prisma = new PrismaClient({
 // Подключение к базе данных при запуске
 prisma.$connect()
   .then(() => {
-    console.log('✅ Подключение к базе данных установлено');
+    console.log(' Подключение к базе данных установлено');
   })
-  .catch((error) => {
-    console.error('❌ Ошибка подключения к базе данных:', error);
+  .catch((error: unknown) => {
+    console.error(' Ошибка подключения к базе данных:', error);
     process.exit(1);
   });
 
