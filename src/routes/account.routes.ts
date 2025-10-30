@@ -10,7 +10,10 @@ router.post('/login', accountController.login.bind(accountController));
 
 // Защищенные эндпоинты
 router.get('/profile', authenticate, accountController.getProfile.bind(accountController));
-router.post('/refresh', authenticate, accountController.refreshToken.bind(accountController));
+router.put('/profile', authenticate, accountController.updateProfile.bind(accountController));
+
+// Refresh токена как в .NET [AllowAnonymous]
+router.post('/refresh', accountController.refreshToken.bind(accountController));
 
 export default router;
 

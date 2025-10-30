@@ -1,17 +1,14 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import cartService from '../services/cart.service';
-import { BadRequestError } from '../utils/errors';
 
 class AdminCartController {
   /**
    * GET /api/admin/carts
    * Получить все корзины (только для админа)
    */
-  async getAll(_req: Request, res: Response, next: NextFunction) {
+  async getAll(_req: Request, res: Response) {
     try {
       const carts = await cartService.getAll();
-
-      // Формируем ответ в формате C# API
       const response = carts.map((cart) => ({
         id: cart.id,
         userId: cart.userId,
@@ -22,13 +19,11 @@ class AdminCartController {
           priceSnapshot: item.priceSnapshot ? parseFloat(item.priceSnapshot.toString()) : null,
         })),
       }));
-
-      res.json({
-        success: true,
-        data: response,
-      });
-    } catch (error) {
-      next(error);
+      res.status(200).json(response);
+      return;
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Internal server error' });
+      return;
     }
   }
 
@@ -36,17 +31,12 @@ class AdminCartController {
    * GET /api/admin/carts/user/:userId
    * Получить корзину пользователя по userId (только для админа)
    */
-  async getByUserId(req: Request, res: Response, next: NextFunction) {
+  async getByUserId(req: Request, res: Response) {
     try {
       const { userId } = req.params;
-
-      if (!userId) {
-        throw new BadRequestError('ID пользователя обязателен');
-      }
-
+      if (!userId) return res.status(400).json({ error: 'ID пользователя обязателен' });
       const cart = await cartService.getByUserId(userId);
-
-      // Формируем ответ в формате C# API
+      if (!cart) return res.status(404).json({ error: 'Корзина не найдена' });
       const response = {
         id: cart.id,
         userId: cart.userId,
@@ -57,13 +47,11 @@ class AdminCartController {
           priceSnapshot: item.priceSnapshot ? parseFloat(item.priceSnapshot.toString()) : null,
         })),
       };
-
-      res.json({
-        success: true,
-        data: response,
-      });
-    } catch (error) {
-      next(error);
+      res.status(200).json(response);
+      return;
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Internal server error' });
+      return;
     }
   }
 }

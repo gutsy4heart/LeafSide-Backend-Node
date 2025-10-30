@@ -1,21 +1,15 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import cartService from '../services/cart.service';
-import { BadRequestError } from '../utils/errors';
 
 class CartController {
   /**
    * GET /api/cart
    * Получить корзину текущего пользователя
    */
-  async get(req: Request, res: Response, next: NextFunction) {
+  async get(req: Request, res: Response) {
     try {
-      if (!req.user) {
-        throw new BadRequestError('Пользователь не найден в запросе');
-      }
-
+      if (!req.user) return res.status(401).json({ error: 'Пользователь не найден в запросе' });
       const cart = await cartService.getOrCreate(req.user.userId);
-
-      // Формируем ответ в формате C# API
       const response = {
         id: cart.id,
         items: cart.items.map((item: any) => ({
@@ -24,13 +18,11 @@ class CartController {
           priceSnapshot: item.priceSnapshot ? parseFloat(item.priceSnapshot.toString()) : null,
         })),
       };
-
-      res.json({
-        success: true,
-        data: response,
-      });
-    } catch (error) {
-      return next(error);
+      res.status(200).json(response);
+      return;
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Ошибка сервера' });
+      return;
     }
   }
 
@@ -38,25 +30,13 @@ class CartController {
    * POST /api/cart/items
    * Добавить или обновить товар в корзине
    */
-  async addOrUpdateItem(req: Request, res: Response, next: NextFunction) {
+  async addOrUpdateItem(req: Request, res: Response) {
     try {
-      if (!req.user) {
-        throw new BadRequestError('Пользователь не найден в запросе');
-      }
-
+      if (!req.user) return res.status(401).json({ error: 'Пользователь не найден в запросе' });
       const { bookId, quantity } = req.body;
-
-      if (!bookId) {
-        throw new BadRequestError('ID книги обязателен');
-      }
-
-      if (!quantity || quantity < 1) {
-        throw new BadRequestError('Количество должно быть больше 0');
-      }
-
+      if (!bookId) return res.status(400).json({ error: 'ID книги обязателен' });
+      if (!quantity || quantity < 1) return res.status(400).json({ error: 'Количество должно быть больше 0' });
       const cart = await cartService.addOrUpdateItem(req.user.userId, bookId, quantity);
-
-      // Формируем ответ в формате C# API
       const response = {
         id: cart.id,
         items: cart.items.map((item: any) => ({
@@ -65,13 +45,11 @@ class CartController {
           priceSnapshot: item.priceSnapshot ? parseFloat(item.priceSnapshot.toString()) : null,
         })),
       };
-
-      res.json({
-        success: true,
-        data: response,
-      });
-    } catch (error) {
-      return next(error);
+      res.status(200).json(response);
+      return;
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || 'Ошибка обновления корзины' });
+      return;
     }
   }
 
@@ -79,30 +57,18 @@ class CartController {
    * DELETE /api/cart/items/:bookId
    * Удалить товар из корзины
    */
-  async removeItem(req: Request, res: Response, next: NextFunction) {
+  async removeItem(req: Request, res: Response) {
     try {
-      if (!req.user) {
-        throw new BadRequestError('Пользователь не найден в запросе');
-      }
-
+      if (!req.user) return res.status(401).json({ error: 'Пользователь не найден в запросе' });
       const { bookId } = req.params;
-
-      if (!bookId) {
-        throw new BadRequestError('ID книги обязателен');
-      }
-
+      if (!bookId) return res.status(400).json({ error: 'ID книги обязателен' });
       const deleted = await cartService.removeItem(req.user.userId, bookId);
-
-      if (!deleted) {
-        return res.status(404).json({
-          success: false,
-          error: 'Товар не найден в корзине',
-        });
-      }
-
-      return res.status(204).send();
-    } catch (error) {
-      return next(error);
+      if (!deleted) return res.status(404).json({ error: 'Товар не найден в корзине' });
+      res.status(204).send();
+      return;
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Ошибка удаления товара из корзины' });
+      return;
     }
   }
 
@@ -110,24 +76,16 @@ class CartController {
    * DELETE /api/cart
    * Очистить корзину
    */
-  async clear(req: Request, res: Response, next: NextFunction) {
+  async clear(req: Request, res: Response) {
     try {
-      if (!req.user) {
-        throw new BadRequestError('Пользователь не найден в запросе');
-      }
-
+      if (!req.user) return res.status(401).json({ error: 'Пользователь не найден в запросе' });
       const cleared = await cartService.clear(req.user.userId);
-
-      if (!cleared) {
-        return res.status(404).json({
-          success: false,
-          error: 'Корзина не найдена',
-        });
-      }
-
-      return res.status(204).send();
-    } catch (error) {
-      return next(error);
+      if (!cleared) return res.status(404).json({ error: 'Корзина не найдена' });
+      res.status(204).send();
+      return;
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Ошибка очистки корзины' });
+      return;
     }
   }
 }

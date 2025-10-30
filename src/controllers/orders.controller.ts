@@ -1,37 +1,22 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import ordersService, { CreateOrderData } from '../services/orders.service';
-import { BadRequestError } from '../utils/errors';
 
 class OrdersController {
   /**
    * POST /api/orders
    * Создать заказ
    */
-  async create(req: Request, res: Response, next: NextFunction) {
+  async create(req: Request, res: Response) {
     try {
-      if (!req.user) {
-        throw new BadRequestError('Пользователь не найден в запросе');
-      }
-
+      if (!req.user) return res.status(401).json({ error: 'Пользователь не найден в запросе' });
       const { items, totalAmount, shippingAddress, customerName, customerEmail, customerPhone, notes } = req.body;
-
       if (!items || !Array.isArray(items) || items.length === 0) {
-        throw new BadRequestError('Список товаров не может быть пустым');
+        return res.status(400).json({ error: 'Список товаров не может быть пустым' });
       }
-
       const orderData: CreateOrderData = {
-        items,
-        totalAmount: parseFloat(totalAmount),
-        shippingAddress,
-        customerName,
-        customerEmail,
-        customerPhone,
-        notes,
+        items, totalAmount: parseFloat(totalAmount), shippingAddress, customerName, customerEmail, customerPhone, notes
       };
-
       const order = await ordersService.create(req.user.userId, orderData);
-
-      // Формируем ответ в формате C# API
       const response = {
         id: order.id,
         userId: order.userId,
@@ -53,13 +38,11 @@ class OrdersController {
           totalPrice: parseFloat(item.totalPrice.toString()),
         })),
       };
-
-      res.status(201).json({
-        success: true,
-        data: response,
-      });
-    } catch (error) {
-      next(error);
+      res.status(200).json(response);
+      return;
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || 'Ошибка создания заказа' });
+      return;
     }
   }
 
@@ -67,15 +50,10 @@ class OrdersController {
    * GET /api/orders
    * Получить заказы текущего пользователя
    */
-  async getUserOrders(req: Request, res: Response, next: NextFunction) {
+  async getUserOrders(req: Request, res: Response) {
     try {
-      if (!req.user) {
-        throw new BadRequestError('Пользователь не найден в запросе');
-      }
-
+      if (!req.user) return res.status(401).json({ error: 'Пользователь не найден в запросе' });
       const orders = await ordersService.getUserOrders(req.user.userId);
-
-      // Формируем ответ в формате C# API
       const response = orders.map((order) => ({
         id: order.id,
         userId: order.userId,
@@ -97,13 +75,11 @@ class OrdersController {
           totalPrice: parseFloat(item.totalPrice.toString()),
         })),
       }));
-
-      res.json({
-        success: true,
-        data: response,
-      });
-    } catch (error) {
-      next(error);
+      res.status(200).json(response);
+      return;
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Ошибка получения списка заказов' });
+      return;
     }
   }
 
@@ -111,21 +87,13 @@ class OrdersController {
    * GET /api/orders/:id
    * Получить заказ по ID (только свой заказ)
    */
-  async getById(req: Request, res: Response, next: NextFunction) {
+  async getById(req: Request, res: Response) {
     try {
-      if (!req.user) {
-        throw new BadRequestError('Пользователь не найден в запросе');
-      }
-
+      if (!req.user) return res.status(401).json({ error: 'Пользователь не найден в запросе' });
       const { id } = req.params;
-
-      if (!id) {
-        throw new BadRequestError('ID заказа обязателен');
-      }
-
+      if (!id) return res.status(400).json({ error: 'ID заказа обязателен' });
       const order = await ordersService.getUserOrder(req.user.userId, id);
-
-      // Формируем ответ в формате C# API
+      if (!order) return res.status(404).json({ error: 'Заказ не найден' });
       const response = {
         id: order.id,
         userId: order.userId,
@@ -147,13 +115,11 @@ class OrdersController {
           totalPrice: parseFloat(item.totalPrice.toString()),
         })),
       };
-
-      res.json({
-        success: true,
-        data: response,
-      });
-    } catch (error) {
-      next(error);
+      res.status(200).json(response);
+      return;
+    } catch (error: any) {
+      res.status(404).json({ error: error.message || 'Ошибка получения заказа' });
+      return;
     }
   }
 
@@ -161,21 +127,13 @@ class OrdersController {
    * PUT /api/orders/:id/confirm-delivery
    * Подтвердить доставку заказа
    */
-  async confirmDelivery(req: Request, res: Response, next: NextFunction) {
+  async confirmDelivery(req: Request, res: Response) {
     try {
-      if (!req.user) {
-        throw new BadRequestError('Пользователь не найден в запросе');
-      }
-
+      if (!req.user) return res.status(401).json({ error: 'Пользователь не найден в запросе' });
       const { id } = req.params;
-
-      if (!id) {
-        throw new BadRequestError('ID заказа обязателен');
-      }
-
+      if (!id) return res.status(400).json({ error: 'ID заказа обязателен' });
       const order = await ordersService.confirmDelivery(req.user.userId, id);
-
-      // Формируем ответ в формате C# API
+      if (!order) return res.status(404).json({ error: 'Заказ не найден или не принадлежит пользователю' });
       const response = {
         id: order.id,
         userId: order.userId,
@@ -197,13 +155,11 @@ class OrdersController {
           totalPrice: parseFloat(item.totalPrice.toString()),
         })),
       };
-
-      res.json({
-        success: true,
-        data: response,
-      });
-    } catch (error) {
-      next(error);
+      res.status(200).json(response);
+      return;
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || 'Ошибка подтверждения заказа' });
+      return;
     }
   }
 }

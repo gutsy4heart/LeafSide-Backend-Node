@@ -1,17 +1,14 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import ordersService from '../services/orders.service';
-import { BadRequestError } from '../utils/errors';
 
 class AdminOrdersController {
   /**
    * GET /api/admin/orders
    * Получить все заказы (только для админа)
    */
-  async getAll(_req: Request, res: Response, next: NextFunction) {
+  async getAll(_req: Request, res: Response) {
     try {
       const orders = await ordersService.getAll();
-
-      // Формируем ответ в формате C# API
       const response = orders.map((order) => ({
         id: order.id,
         userId: order.userId,
@@ -33,13 +30,11 @@ class AdminOrdersController {
           totalPrice: parseFloat(item.totalPrice.toString()),
         })),
       }));
-
-      res.json({
-        success: true,
-        data: response,
-      });
-    } catch (error) {
-      next(error);
+      res.status(200).json(response);
+      return;
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Internal server error' });
+      return;
     }
   }
 
@@ -47,17 +42,12 @@ class AdminOrdersController {
    * GET /api/admin/orders/:id
    * Получить заказ по ID (только для админа)
    */
-  async getById(req: Request, res: Response, next: NextFunction) {
+  async getById(req: Request, res: Response) {
     try {
       const { id } = req.params;
-
-      if (!id) {
-        throw new BadRequestError('ID заказа обязателен');
-      }
-
+      if (!id) return res.status(400).json({ error: 'ID заказа обязателен' });
       const order = await ordersService.getById(id);
-
-      // Формируем ответ в формате C# API
+      if (!order) return res.status(404).json({ error: 'Заказ не найден' });
       const response = {
         id: order.id,
         userId: order.userId,
@@ -79,13 +69,11 @@ class AdminOrdersController {
           totalPrice: parseFloat(item.totalPrice.toString()),
         })),
       };
-
-      res.json({
-        success: true,
-        data: response,
-      });
-    } catch (error) {
-      next(error);
+      res.status(200).json(response);
+      return;
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Internal server error' });
+      return;
     }
   }
 
@@ -93,22 +81,14 @@ class AdminOrdersController {
    * PUT /api/admin/orders/:id/status
    * Обновить статус заказа (только для админа)
    */
-  async updateStatus(req: Request, res: Response, next: NextFunction) {
+  async updateStatus(req: Request, res: Response) {
     try {
       const { id } = req.params;
       const { status } = req.body;
-
-      if (!id) {
-        throw new BadRequestError('ID заказа обязателен');
-      }
-
-      if (!status) {
-        throw new BadRequestError('Статус обязателен');
-      }
-
+      if (!id) return res.status(400).json({ error: 'ID заказа обязателен' });
+      if (!status) return res.status(400).json({ error: 'Статус обязателен' });
       const order = await ordersService.updateStatus(id, status);
-
-      // Формируем ответ в формате C# API
+      if (!order) return res.status(404).json({ error: 'Заказ не найден' });
       const response = {
         id: order.id,
         userId: order.userId,
@@ -130,13 +110,11 @@ class AdminOrdersController {
           totalPrice: parseFloat(item.totalPrice.toString()),
         })),
       };
-
-      res.json({
-        success: true,
-        data: response,
-      });
-    } catch (error) {
-      next(error);
+      res.status(200).json(response);
+      return;
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || 'Failed to update order status' });
+      return;
     }
   }
 
@@ -144,26 +122,17 @@ class AdminOrdersController {
    * DELETE /api/admin/orders/:id
    * Удалить заказ (только для админа)
    */
-  async delete(req: Request, res: Response, next: NextFunction) {
+  async delete(req: Request, res: Response) {
     try {
       const { id } = req.params;
-
-      if (!id) {
-        throw new BadRequestError('ID заказа обязателен');
-      }
-
+      if (!id) return res.status(400).json({ error: 'ID заказа обязателен' });
       const deleted = await ordersService.delete(id);
-
-      if (!deleted) {
-        return res.status(404).json({
-          success: false,
-          error: 'Заказ не найден',
-        });
-      }
-
-      return res.status(204).send();
-    } catch (error) {
-      return next(error);
+      if (!deleted) return res.status(404).json({ error: 'Заказ не найден' });
+      res.status(204).send();
+      return;
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to delete order' });
+      return;
     }
   }
 }

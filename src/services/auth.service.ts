@@ -230,6 +230,43 @@ class AuthService {
       roles,
     });
   }
+
+  async updateProfile(userId: string, update: Partial<RegisterData>) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        roles: {
+          include: { role: true }
+        }
+      }
+    });
+    if (!user) throw new NotFoundError('Пользователь не найден');
+    // Только указанные ниже поля разрешено обновлять
+    const data: any = {};
+    if (typeof update.firstName === 'string') data.firstName = update.firstName;
+    if (typeof update.lastName === 'string') data.lastName = update.lastName;
+    if (typeof update.phoneNumber === 'string') data.phoneNumber = update.phoneNumber;
+    if (typeof update.countryCode === 'string') data.countryCode = update.countryCode;
+    if (typeof update.gender === 'string') data.gender = update.gender;
+    await prisma.user.update({ where: { id: userId }, data });
+    // Возвращаем обновленный профиль (соответствует getProfile)
+    const updated = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { roles: { include: { role: true } } }
+    });
+    const roles = updated?.roles.map((ur: any) => ur.role?.name).filter((name: string|null) => name !== null) as string[];
+    return {
+      id: updated!.id,
+      email: updated!.email ?? '',
+      firstName: updated!.firstName,
+      lastName: updated!.lastName,
+      phoneNumber: updated!.phoneNumber,
+      countryCode: updated!.countryCode,
+      gender: updated!.gender,
+      roles,
+      createdAt: updated!.createdAt,
+    };
+  }
 }
 
 export default new AuthService();

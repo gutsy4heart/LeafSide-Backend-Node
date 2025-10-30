@@ -117,3 +117,15 @@ API будет доступен по адресу: `http://localhost:5233`
 - CORS настройки
 - Хеширование паролей через bcryptjs
 
+## Важно: Использование отдельной базы данных
+
+- Node API использует собственную базу данных и контейнер PostgreSQL:
+  - контейнер: db_node (compose из leafside-backend-node)
+  - порт: 5433
+  - база: leafsidedb_node
+  - строка подключения: `postgresql://leafuser:leafpass@localhost:5433/leafsidedb_node?schema=public`
+
+- Cтарый .NET backend использует свой docker-compose и контейнер (db, порт 5432, база leafsidedb).
+
+**Не используйте одну и ту же БД для обоих backend!** Каждый использует свой docker compose и строку подключения.
+

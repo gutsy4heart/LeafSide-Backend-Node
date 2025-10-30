@@ -9,6 +9,7 @@ import booksRoutes from './routes/books.routes';
 import cartRoutes from './routes/cart.routes';
 import ordersRoutes from './routes/orders.routes';
 import adminRoutes from './routes/admin.routes';
+import userStatsRoutes from './routes/userstats.routes';
 
 const app: Express = express();
 
@@ -21,17 +22,23 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// Health check (строго по .NET)
+app.get('/api/health', (_req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    selectedBase: 'PostgreSQL',
+  });
 });
 
 // API Routes
 app.use('/api/account', accountRoutes);
 app.use('/api/books', booksRoutes);
+app.use('/api/Books', booksRoutes);// для совместимости с фронтом
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/userstats', userStatsRoutes);
 
 // 404 handler
 app.use((_req, res) => {
