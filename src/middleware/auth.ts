@@ -36,18 +36,49 @@ export function authenticate(req: Request, _res: Response, next: NextFunction) {
 }
 
 /**
- * Middleware для проверки роли администратора
+ * Middleware для проверки роли администратора (Admin или SuperAdmin)
  */
 export function requireAdmin(req: Request, _res: Response, next: NextFunction) {
   if (!req.user) {
     return next(new UnauthorizedError('Не авторизован'));
   }
 
-  if (!req.user.roles.includes('Admin')) {
+  const hasAdminRole = req.user.roles.includes('Admin') || req.user.roles.includes('SuperAdmin');
+  if (!hasAdminRole) {
     return next(new ForbiddenError('Требуются права администратора'));
   }
 
   next();
+}
+
+/**
+ * Middleware для проверки роли суперадмина
+ */
+export function requireSuperAdmin(req: Request, _res: Response, next: NextFunction) {
+  if (!req.user) {
+    return next(new UnauthorizedError('Не авторизован'));
+  }
+
+  if (!req.user.roles.includes('SuperAdmin')) {
+    return next(new ForbiddenError('Требуются права суперадмина'));
+  }
+
+  next();
+}
+
+/**
+ * Проверка, является ли пользователь суперадмином
+ */
+export function isSuperAdmin(user: JWTPayload | undefined): boolean {
+  return user?.roles.includes('SuperAdmin') ?? false;
+}
+
+/**
+ * Проверка, является ли пользователь админом (Admin или SuperAdmin)
+ */
+export function isAdmin(user: JWTPayload | undefined): boolean {
+  if (!user) return false;
+  return user.roles.includes('Admin') || user.roles.includes('SuperAdmin');
 }
 
 /**

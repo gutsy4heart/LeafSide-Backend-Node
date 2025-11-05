@@ -31,14 +31,25 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-// API Routes
+// API Routes (маленькие буквы - основной стиль)
 app.use('/api/account', accountRoutes);
 app.use('/api/books', booksRoutes);
-app.use('/api/Books', booksRoutes);// для совместимости с фронтом
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/userstats', userStatsRoutes);
+
+// Альтернативные маршруты с большой буквы для совместимости с фронтендом
+app.use('/api/Account', accountRoutes);
+app.use('/api/Books', booksRoutes);
+app.use('/api/Cart', cartRoutes);
+app.use('/api/Orders', ordersRoutes);
+app.use('/api/Admin', adminRoutes);
+app.use('/api/UserStats', userStatsRoutes);
+
+// Специальные маршруты для совместимости с фронтендом (C# стиль именования)
+app.use('/api/AdminUsers', adminRoutes); // /api/AdminUsers/users → /api/admin/users
+app.use('/api/UserProfile', accountRoutes); // /api/UserProfile/profile → /api/account/profile
 
 // 404 handler
 app.use((_req, res) => {

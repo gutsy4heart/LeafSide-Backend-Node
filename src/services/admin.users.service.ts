@@ -1,6 +1,7 @@
 import prisma from '../config/database';
 import bcrypt from 'bcryptjs';
 import { UserWithRoleResponse, CreateUserRequest, UpdateUserRequest } from '../types/admin.user';
+import { JWTPayload } from '../utils/jwt';
 
 class AdminUsersService {
   // Получить всех пользователей с ролями
@@ -26,6 +27,12 @@ class AdminUsersService {
 
   // Создать пользователя (и добавить роль "User" по умолчанию)
   async createUser(data: CreateUserRequest): Promise<UserWithRoleResponse> {
+    // Проверка: нельзя создать суперадмина через API (он создается только через seed)
+    // Если в запросе явно указана роль SuperAdmin, выбрасываем ошибку
+    if ((data as any).role === 'SuperAdmin') {
+      throw new Error('Нельзя создать суперадмина через API. Суперадмин создается только через seed базы данных');
+    }
+
     const passwordHash = await bcrypt.hash(data.password, 10);
     // Берем ID роли "USER" (normalizedName)
     const userRole = await prisma.role.findUnique({ where: { normalizedName: 'USER' } });
@@ -78,7 +85,33 @@ class AdminUsersService {
   }
 
   // Удалить пользователя
-  async deleteUser(id: string): Promise<boolean> {
+  // currentUser - текущий пользователь, который выполняет операцию
+  async deleteUser(id: string, currentUser: JWTPayload): Promise<boolean> {
+    // Проверка: нельзя удалить самого себя
+    if (id === currentUser.userId) {
+      throw new Error('Нельзя удалить самого себя');
+    }
+
+    // Найти пользователя и проверить его роли
+    const user = await prisma.user.findUnique({
+      where: { id },
+      include: { 
+        roles: { 
+          include: { role: true } 
+        } 
+      }
+    });
+
+    if (!user) {
+      return false;
+    }
+
+    // Проверка: нельзя удалить суперадмина
+    const userRoles = user.roles.map(ur => ur.role.normalizedName);
+    if (userRoles.includes('SUPERADMIN')) {
+      throw new Error('Нельзя удалить суперадмина');
+    }
+
     try {
       await prisma.user.delete({ where: { id } });
       return true;
@@ -95,17 +128,68 @@ class AdminUsersService {
   }
 
   // Обновить РОЛЬ пользователя (удалить старые, назначить новую)
-  async updateUserRole(userId: string, newRole: string): Promise<void> {
+  // currentUser - текущий пользователь, который выполняет операцию
+  async updateUserRole(userId: string, newRole: string, currentUser: JWTPayload): Promise<void> {
+    // Проверка: суперадмин и админ могут изменять роли
+    const isSuperAdmin = currentUser.roles.includes('SuperAdmin');
+    const isAdmin = currentUser.roles.includes('Admin');
+    
+    if (!isSuperAdmin && !isAdmin) {
+      throw new Error('Недостаточно прав для изменения роли пользователя');
+    }
+
     // Найти пользователя и все связи
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { roles: true }
+      include: { 
+        roles: { 
+          include: { role: true } 
+        } 
+      }
     });
+    
     if (!user) throw new Error('User not found');
+
+    const userRoles = user.roles.map(ur => ur.role.normalizedName);
+    const isTargetSuperAdmin = userRoles.includes('SUPERADMIN');
+
+    // Проверка: нельзя изменить роль суперадмина (только сам суперадмин может, но не админы)
+    if (isTargetSuperAdmin && !isSuperAdmin) {
+      throw new Error('Недостаточно прав для изменения роли суперадмина');
+    }
+
+    // Проверка: нельзя назначить роль SuperAdmin обычным админам (только суперадмин может)
+    if (newRole === 'SuperAdmin' && !isSuperAdmin) {
+      throw new Error('Только суперадмин может назначать роль SuperAdmin');
+    }
+
+    // Проверка: суперадмин может быть только один
+    // Если пытаемся назначить роль SuperAdmin, проверяем, есть ли уже суперадмин
+    if (newRole === 'SuperAdmin' || newRole === 'SUPERADMIN') {
+      // Проверяем, есть ли уже другой суперадмин (не тот, чью роль мы меняем)
+      const existingSuperAdmin = await prisma.user.findFirst({
+        where: {
+          id: { not: userId }, // Исключаем текущего пользователя
+          roles: {
+            some: {
+              role: {
+                normalizedName: 'SUPERADMIN'
+              }
+            }
+          }
+        }
+      });
+
+      if (existingSuperAdmin) {
+        throw new Error('Суперадмин уже существует в системе. Не может быть более одного суперадмина');
+      }
+    }
+
     const targetRole = await prisma.role.findFirst({
       where: { OR: [{ name: newRole }, { normalizedName: newRole.toUpperCase() }] },
     });
     if (!targetRole) throw new Error('Role not found');
+    
     // удалить все роли
     await prisma.userRole.deleteMany({ where: { userId } });
     // добавить новую роль

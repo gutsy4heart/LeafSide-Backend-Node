@@ -59,7 +59,8 @@ class AdminUsersController {
       const { userId } = req.params;
       const { role } = req.body as UpdateUserRoleRequest;
       if (!userId || !role) return res.status(400).json({ error: 'userId and role are required' });
-      await adminUsersService.updateUserRole(userId, role);
+      if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+      await adminUsersService.updateUserRole(userId, role, req.user);
       return res.status(200).json({ message: `User role updated to ${role}` });
     } catch (error: any) {
       return res.status(400).json({ error: error.message || 'Failed to update user role' });
@@ -81,10 +82,15 @@ class AdminUsersController {
     try {
       const { userId } = req.params;
       if (!userId) return res.status(400).json({ error: 'Invalid user ID' });
-      const deleted = await adminUsersService.deleteUser(userId);
+      if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+      const deleted = await adminUsersService.deleteUser(userId, req.user);
       if (!deleted) return res.status(404).json({ error: 'User not found' });
       return res.status(204).send();
     } catch (error: any) {
+      // Ошибки валидации (например, попытка удалить суперадмина) возвращаем с 400
+      if (error.message && (error.message.includes('Нельзя удалить') || error.message.includes('удалить самого себя'))) {
+        return res.status(400).json({ error: error.message });
+      }
       return res.status(500).json({ error: error.message || 'Internal server error' });
     }
   }

@@ -1,4 +1,3 @@
-// Prisma schema для LeafSide - синхронизирован с существующими таблицами C# проекта
 
 generator client {
   provider = "prisma-client-js"
@@ -9,7 +8,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Пользователи (соответствует AspNetUsers)
 model User {
   id                      String   @id @default(uuid()) @map("Id")
   userName                String?   @map("UserName")
@@ -47,7 +45,6 @@ model User {
   @@map("AspNetUsers")
 }
 
-// Роли (соответствует AspNetRoles)
 model Role {
   id                String        @id @default(uuid()) @map("Id")
   name              String?       @map("Name")
@@ -62,7 +59,6 @@ model Role {
   @@map("AspNetRoles")
 }
 
-// Связь User-Role (соответствует AspNetUserRoles)
 model UserRole {
   userId    String @map("UserId")
   roleId    String @map("RoleId")
@@ -74,7 +70,6 @@ model UserRole {
   @@map("AspNetUserRoles")
 }
 
-// Role Claims (соответствует AspNetRoleClaims)
 model RoleClaim {
   id        Int    @id @default(autoincrement()) @map("Id")
   roleId    String @map("RoleId")
@@ -86,7 +81,6 @@ model RoleClaim {
   @@map("AspNetRoleClaims")
 }
 
-// User Claims (соответствует AspNetUserClaims)
 model UserClaim {
   id         Int     @id @default(autoincrement()) @map("Id")
   userId     String  @map("UserId")
@@ -98,7 +92,6 @@ model UserClaim {
   @@map("AspNetUserClaims")
 }
 
-// User Logins (соответствует AspNetUserLogins)
 model UserLogin {
   userId            String @map("UserId")
   loginProvider     String @map("LoginProvider")
@@ -111,7 +104,6 @@ model UserLogin {
   @@map("AspNetUserLogins")
 }
 
-// User Tokens (соответствует AspNetUserTokens)
 model UserToken {
   userId        String  @map("UserId")
   loginProvider String  @map("LoginProvider")
