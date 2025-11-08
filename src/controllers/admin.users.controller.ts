@@ -57,9 +57,19 @@ class AdminUsersController {
   async updateUserRole(req: Request, res: Response) {
     try {
       const { userId } = req.params;
-      const { role } = req.body as UpdateUserRoleRequest;
-      if (!userId || !role) return res.status(400).json({ error: 'userId and role are required' });
+      let { role } = req.body as UpdateUserRoleRequest;
+      
+      if (!userId || role === undefined || role === null) {
+        return res.status(400).json({ error: 'userId and role are required' });
+      }
+      
+      // Ensure role is a string
+      if (typeof role !== 'string') {
+        role = String(role);
+      }
+      
       if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+      
       await adminUsersService.updateUserRole(userId, role, req.user);
       return res.status(200).json({ message: `User role updated to ${role}` });
     } catch (error: any) {

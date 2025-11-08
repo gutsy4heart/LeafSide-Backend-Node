@@ -2,6 +2,7 @@ import { Router } from 'express';
 import adminCartController from '../controllers/admin.cart.controller';
 import adminOrdersController from '../controllers/admin.orders.controller';
 import adminUsersController from '../controllers/admin.users.controller';
+import booksController from '../controllers/books.controller';
 import { authenticate, requireAdmin } from '../middleware/auth';
 
 const router = Router();
@@ -28,6 +29,13 @@ router.get('/orders', adminOrdersController.getAll.bind(adminOrdersController));
 router.get('/orders/:id', adminOrdersController.getById.bind(adminOrdersController));
 router.put('/orders/:id/status', adminOrdersController.updateStatus.bind(adminOrdersController));
 router.delete('/orders/:id', adminOrdersController.delete.bind(adminOrdersController));
+
+// Books routes (admin endpoints)
+router.get('/books', booksController.getAll.bind(booksController));
+router.get('/books/:id', booksController.getById.bind(booksController));
+router.post('/books', booksController.create.bind(booksController));
+router.put('/books/:id', booksController.update.bind(booksController));
+router.delete('/books/:id', booksController.delete.bind(booksController));
 
 export default router;
 

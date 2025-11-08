@@ -130,6 +130,11 @@ class AdminUsersService {
   // Обновить РОЛЬ пользователя (удалить старые, назначить новую)
   // currentUser - текущий пользователь, который выполняет операцию
   async updateUserRole(userId: string, newRole: string, currentUser: JWTPayload): Promise<void> {
+    // Ensure newRole is a string
+    if (typeof newRole !== 'string') {
+      newRole = String(newRole);
+    }
+    
     // Проверка: суперадмин и админ могут изменять роли
     const isSuperAdmin = currentUser.roles.includes('SuperAdmin');
     const isAdmin = currentUser.roles.includes('Admin');
@@ -153,9 +158,9 @@ class AdminUsersService {
     const userRoles = user.roles.map(ur => ur.role.normalizedName);
     const isTargetSuperAdmin = userRoles.includes('SUPERADMIN');
 
-    // Проверка: нельзя изменить роль суперадмина (только сам суперадмин может, но не админы)
-    if (isTargetSuperAdmin && !isSuperAdmin) {
-      throw new Error('Недостаточно прав для изменения роли суперадмина');
+    // Проверка: нельзя изменить роль суперадмина (никто не может, включая самого суперадмина)
+    if (isTargetSuperAdmin) {
+      throw new Error('Нельзя изменить роль суперадмина');
     }
 
     // Проверка: нельзя назначить роль SuperAdmin обычным админам (только суперадмин может)
@@ -185,10 +190,43 @@ class AdminUsersService {
       }
     }
 
-    const targetRole = await prisma.role.findFirst({
-      where: { OR: [{ name: newRole }, { normalizedName: newRole.toUpperCase() }] },
+    // Try to find role by name or normalizedName
+    // Handle different case variations: "Admin", "admin", "ADMIN", etc.
+    const normalizedRole = newRole.toUpperCase();
+    
+    // First, get all available roles
+    const allRoles = await prisma.role.findMany({ 
+      select: { id: true, name: true, normalizedName: true } 
     });
-    if (!targetRole) throw new Error('Role not found');
+    
+    // Try to find role - check both name and normalizedName
+    let targetRole = await prisma.role.findFirst({
+      where: { 
+        OR: [
+          { name: newRole },
+          { normalizedName: normalizedRole }
+        ] 
+      },
+    });
+    
+    // If not found, try case-insensitive search by checking all roles
+    if (!targetRole) {
+      const foundRole = allRoles.find(r => 
+        r.name?.toLowerCase() === newRole.toLowerCase() || 
+        r.normalizedName?.toLowerCase() === normalizedRole.toLowerCase()
+      );
+      if (foundRole) {
+        // Get the full role object
+        targetRole = await prisma.role.findUnique({
+          where: { id: foundRole.id }
+        });
+      }
+    }
+    
+    if (!targetRole) {
+      const availableRoleNames = allRoles.map(r => r.name || r.normalizedName).filter(Boolean).join(', ');
+      throw new Error(`Role not found: "${newRole}". Available roles: ${availableRoleNames || 'none'}`);
+    }
     
     // удалить все роли
     await prisma.userRole.deleteMany({ where: { userId } });
@@ -197,6 +235,11 @@ class AdminUsersService {
   }
 
   private mapUserToResponse(user: any): UserWithRoleResponse {
+    const roles = user.roles ? user.roles.map((ur: any) => {
+      const roleName = ur.role?.name || '';
+      return roleName;
+    }) : [];
+    
     return {
       id: user.id,
       email: user.email || '',
@@ -206,7 +249,7 @@ class AdminUsersService {
       phoneNumber: user.phoneNumber || '',
       countryCode: user.countryCode || '',
       gender: user.gender || '',
-      roles: user.roles ? user.roles.map((ur: any) => ur.role?.name || '') : [],
+      roles,
       createdAt: user.createdAt instanceof Date ? user.createdAt.toISOString() : user.createdAt,
     };
   }

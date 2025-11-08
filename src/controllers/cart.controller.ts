@@ -1,28 +1,34 @@
 import { Request, Response } from 'express';
 import cartService from '../services/cart.service';
+import { requireUser, handleControllerError, sendSuccess, sendNoContent, getRequiredParam } from '../utils/controller-helpers';
+import { BadRequestError, NotFoundError } from '../utils/errors';
 
 class CartController {
+  /**
+   * Форматирование корзины для ответа
+   */
+  private formatCart(cart: any) {
+    return {
+      id: cart.id,
+      items: cart.items.map((item: any) => ({
+        bookId: item.bookId,
+        quantity: item.quantity,
+        priceSnapshot: item.priceSnapshot ? parseFloat(item.priceSnapshot.toString()) : null,
+      })),
+    };
+  }
+
   /**
    * GET /api/cart
    * Получить корзину текущего пользователя
    */
   async get(req: Request, res: Response) {
     try {
-      if (!req.user) return res.status(401).json({ error: 'Пользователь не найден в запросе' });
-      const cart = await cartService.getOrCreate(req.user.userId);
-      const response = {
-        id: cart.id,
-        items: cart.items.map((item: any) => ({
-          bookId: item.bookId,
-          quantity: item.quantity,
-          priceSnapshot: item.priceSnapshot ? parseFloat(item.priceSnapshot.toString()) : null,
-        })),
-      };
-      res.status(200).json(response);
-      return;
+      requireUser(req);
+      const cart = await cartService.getOrCreate(req.user!.userId);
+      sendSuccess(res, this.formatCart(cart));
     } catch (error: any) {
-      res.status(500).json({ error: error.message || 'Ошибка сервера' });
-      return;
+      handleControllerError(error, res, 'Ошибка сервера');
     }
   }
 
@@ -32,24 +38,20 @@ class CartController {
    */
   async addOrUpdateItem(req: Request, res: Response) {
     try {
-      if (!req.user) return res.status(401).json({ error: 'Пользователь не найден в запросе' });
+      requireUser(req);
       const { bookId, quantity } = req.body;
-      if (!bookId) return res.status(400).json({ error: 'ID книги обязателен' });
-      if (!quantity || quantity < 1) return res.status(400).json({ error: 'Количество должно быть больше 0' });
-      const cart = await cartService.addOrUpdateItem(req.user.userId, bookId, quantity);
-      const response = {
-        id: cart.id,
-        items: cart.items.map((item: any) => ({
-          bookId: item.bookId,
-          quantity: item.quantity,
-          priceSnapshot: item.priceSnapshot ? parseFloat(item.priceSnapshot.toString()) : null,
-        })),
-      };
-      res.status(200).json(response);
-      return;
+      
+      if (!bookId) {
+        throw new BadRequestError('ID книги обязателен');
+      }
+      if (!quantity || quantity < 1) {
+        throw new BadRequestError('Количество должно быть больше 0');
+      }
+
+      const cart = await cartService.addOrUpdateItem(req.user!.userId, bookId, quantity);
+      sendSuccess(res, this.formatCart(cart));
     } catch (error: any) {
-      res.status(400).json({ error: error.message || 'Ошибка обновления корзины' });
-      return;
+      handleControllerError(error, res, 'Ошибка обновления корзины', 400);
     }
   }
 
@@ -59,16 +61,17 @@ class CartController {
    */
   async removeItem(req: Request, res: Response) {
     try {
-      if (!req.user) return res.status(401).json({ error: 'Пользователь не найден в запросе' });
-      const { bookId } = req.params;
-      if (!bookId) return res.status(400).json({ error: 'ID книги обязателен' });
-      const deleted = await cartService.removeItem(req.user.userId, bookId);
-      if (!deleted) return res.status(404).json({ error: 'Товар не найден в корзине' });
-      res.status(204).send();
-      return;
+      requireUser(req);
+      const bookId = getRequiredParam(req, 'bookId');
+      const deleted = await cartService.removeItem(req.user!.userId, bookId);
+      
+      if (!deleted) {
+        throw new NotFoundError('Товар не найден в корзине');
+      }
+
+      sendNoContent(res);
     } catch (error: any) {
-      res.status(500).json({ error: error.message || 'Ошибка удаления товара из корзины' });
-      return;
+      handleControllerError(error, res, 'Ошибка удаления товара из корзины');
     }
   }
 
@@ -78,14 +81,16 @@ class CartController {
    */
   async clear(req: Request, res: Response) {
     try {
-      if (!req.user) return res.status(401).json({ error: 'Пользователь не найден в запросе' });
-      const cleared = await cartService.clear(req.user.userId);
-      if (!cleared) return res.status(404).json({ error: 'Корзина не найдена' });
-      res.status(204).send();
-      return;
+      requireUser(req);
+      const cleared = await cartService.clear(req.user!.userId);
+      
+      if (!cleared) {
+        throw new NotFoundError('Корзина не найдена');
+      }
+
+      sendNoContent(res);
     } catch (error: any) {
-      res.status(500).json({ error: error.message || 'Ошибка очистки корзины' });
-      return;
+      handleControllerError(error, res, 'Ошибка очистки корзины');
     }
   }
 }

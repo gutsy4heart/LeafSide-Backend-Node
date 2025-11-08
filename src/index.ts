@@ -2,8 +2,6 @@ import express, { Express } from 'express';
 import cors from 'cors';
 import { config } from './config/app';
 import { errorHandler } from './middleware/errorHandler';
-
-// Импорт роутов
 import accountRoutes from './routes/account.routes';
 import booksRoutes from './routes/books.routes';
 import cartRoutes from './routes/cart.routes';
@@ -13,7 +11,7 @@ import userStatsRoutes from './routes/userstats.routes';
 
 const app: Express = express();
 
-// Middleware
+
 app.use(cors({
   origin: config.cors.origin,
   credentials: true,
@@ -22,7 +20,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check (строго по .NET)
+// Health check
 app.get('/api/health', (_req, res) => {
   res.status(200).json({
     status: 'healthy',
@@ -31,7 +29,6 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-// API Routes (маленькие буквы - основной стиль)
 app.use('/api/account', accountRoutes);
 app.use('/api/books', booksRoutes);
 app.use('/api/cart', cartRoutes);
@@ -39,7 +36,7 @@ app.use('/api/orders', ordersRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/userstats', userStatsRoutes);
 
-// Альтернативные маршруты с большой буквы для совместимости с фронтендом
+
 app.use('/api/Account', accountRoutes);
 app.use('/api/Books', booksRoutes);
 app.use('/api/Cart', cartRoutes);
@@ -47,7 +44,6 @@ app.use('/api/Orders', ordersRoutes);
 app.use('/api/Admin', adminRoutes);
 app.use('/api/UserStats', userStatsRoutes);
 
-// Специальные маршруты для совместимости с фронтендом (C# стиль именования)
 app.use('/api/AdminUsers', adminRoutes); // /api/AdminUsers/users → /api/admin/users
 app.use('/api/UserProfile', accountRoutes); // /api/UserProfile/profile → /api/account/profile
 
@@ -65,9 +61,9 @@ app.use(errorHandler);
 // Запуск сервера
 const PORT = config.port;
 app.listen(PORT, () => {
-  console.log(`🚀 Сервер запущен на порту ${PORT}`);
-  console.log(`📍 Environment: ${config.nodeEnv}`);
-  console.log(`🌐 CORS origin: ${config.cors.origin}`);
+  console.log(`Сервер запущен на порту ${PORT}`);
+  console.log(`Environment: ${config.nodeEnv}`);
+  console.log(`CORS origin: ${config.cors.origin}`);
 });
 
 export default app;

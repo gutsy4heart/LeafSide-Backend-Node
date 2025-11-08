@@ -1,7 +1,19 @@
 import { Request, Response } from 'express';
 import booksService, { CreateBookData } from '../services/books.service';
+import { handleControllerError, sendSuccess, sendNoContent, getRequiredParam } from '../utils/controller-helpers';
+import { NotFoundError } from '../utils/errors';
 
 class BooksController {
+  /**
+   * Нормализация данных книги (обработка цены)
+   */
+  private normalizeBookData(body: any): CreateBookData {
+    return {
+      ...body,
+      price: body.price !== undefined ? parseFloat(body.price) : null,
+    };
+  }
+
   /**
    * GET /api/books
    * Получить все книги
@@ -9,11 +21,9 @@ class BooksController {
   async getAll(_req: Request, res: Response) {
     try {
       const books = await booksService.getAll();
-      res.status(200).json(books);
-      return;
+      sendSuccess(res, books);
     } catch (error: any) {
-      res.status(500).json({ error: error.message || 'Ошибка сервера' });
-      return;
+      handleControllerError(error, res, 'Ошибка сервера');
     }
   }
 
@@ -23,15 +33,16 @@ class BooksController {
    */
   async getById(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      if (!id) return res.status(400).json({ error: 'ID книги обязателен' });
+      const id = getRequiredParam(req, 'id');
       const book = await booksService.getById(id);
-      if (!book) return res.status(404).json({ error: 'Книга не найдена' });
-      res.status(200).json(book);
-      return;
+      
+      if (!book) {
+        throw new NotFoundError('Книга не найдена');
+      }
+
+      sendSuccess(res, book);
     } catch (error: any) {
-      res.status(500).json({ error: error.message || 'Ошибка сервера' });
-      return;
+      handleControllerError(error, res, 'Ошибка сервера');
     }
   }
 
@@ -41,13 +52,11 @@ class BooksController {
    */
   async create(req: Request, res: Response) {
     try {
-      const bookData: CreateBookData = { ...req.body, price: req.body.price !== undefined ? parseFloat(req.body.price) : null };
+      const bookData: CreateBookData = this.normalizeBookData(req.body);
       const created = await booksService.create(bookData);
-      res.status(201).json(created);
-      return;
+      sendSuccess(res, created, 201);
     } catch (error: any) {
-      res.status(400).json({ error: error.message || 'Ошибка создания книги' });
-      return;
+      handleControllerError(error, res, 'Ошибка создания книги', 400);
     }
   }
 
@@ -57,15 +66,16 @@ class BooksController {
    */
   async update(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      if (!id) return res.status(400).json({ error: 'ID книги обязателен' });
-      const updated = await booksService.update(id, { ...req.body, price: req.body.price !== undefined ? parseFloat(req.body.price) : null });
-      if (!updated) return res.status(404).json({ error: 'Книга не найдена' });
-      res.status(200).json(updated);
-      return;
+      const id = getRequiredParam(req, 'id');
+      const updated = await booksService.update(id, this.normalizeBookData(req.body));
+      
+      if (!updated) {
+        throw new NotFoundError('Книга не найдена');
+      }
+
+      sendSuccess(res, updated);
     } catch (error: any) {
-      res.status(400).json({ error: error.message || 'Ошибка обновления книги' });
-      return;
+      handleControllerError(error, res, 'Ошибка обновления книги', 400);
     }
   }
 
@@ -75,15 +85,16 @@ class BooksController {
    */
   async delete(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-      if (!id) return res.status(400).json({ error: 'ID книги обязателен' });
+      const id = getRequiredParam(req, 'id');
       const deleted = await booksService.delete(id);
-      if (!deleted) return res.status(404).json({ error: 'Книга не найдена' });
-      res.status(204).send();
-      return;
+      
+      if (!deleted) {
+        throw new NotFoundError('Книга не найдена');
+      }
+
+      sendNoContent(res);
     } catch (error: any) {
-      res.status(500).json({ error: error.message || 'Ошибка удаления книги' });
-      return;
+      handleControllerError(error, res, 'Ошибка удаления книги');
     }
   }
 }

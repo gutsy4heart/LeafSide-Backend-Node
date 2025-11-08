@@ -62,12 +62,20 @@ class BooksService {
    * Создать книгу
    */
   async create(data: CreateBookData) {
+    // Логирование для отладки
+    console.log('Books Service: Received data:', data);
+    console.log('Books Service: Title value:', data?.title);
+    console.log('Books Service: Title type:', typeof data?.title);
+    console.log('Books Service: Title length:', data?.title?.length);
+    
     // Валидация
-    if (!data.title || !data.title.trim()) {
+    if (!data.title || (typeof data.title === 'string' && !data.title.trim())) {
+      console.error('Books Service: Validation failed - title is missing or empty');
       throw new BadRequestError('Название книги обязательно');
     }
 
-    if (!data.author || !data.author.trim()) {
+    if (!data.author || (typeof data.author === 'string' && !data.author.trim())) {
+      console.error('Books Service: Validation failed - author is missing or empty');
       throw new BadRequestError('Автор книги обязателен');
     }
 

@@ -82,10 +82,6 @@ async function main() {
     },
   });
 
-  console.log(' Суперадмин создан');
-  console.log('   Email: superadmin@leafside.local');
-  console.log('   Password: SuperAdmin12345!');
-  console.log('   Роль: SuperAdmin');
 
   // Создание обычного администратора
   const adminPasswordHash = await bcrypt.hash('Admin12345!', 10);
@@ -133,11 +129,6 @@ async function main() {
     },
   });
 
-  console.log(' Администратор создан');
-  console.log('   Email: admin@leafside.local');
-  console.log('   Password: Admin12345!');
-  console.log('   Роль: Admin');
-
   // Создание тестового пользователя
   const userPasswordHash = await bcrypt.hash('User12345!', 10);
 
@@ -184,12 +175,6 @@ async function main() {
     },
   });
 
-  console.log('Тестовый пользователь создан');
-  console.log('   Email: user@leafside.local');
-  console.log('   Password: User12345!');
-  console.log('   Роль: User');
-
-  console.log('Заполнение базы данных завершено');
 }
 
 main()

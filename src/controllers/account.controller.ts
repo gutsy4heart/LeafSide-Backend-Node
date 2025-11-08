@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import authService, { RegisterData } from '../services/auth.service';
+import { normalizeBodyFields, handleControllerError, sendSuccess, sendNoContent } from '../utils/controller-helpers';
+import { BadRequestError } from '../utils/errors';
 
 class AccountController {
   /**
@@ -8,33 +10,27 @@ class AccountController {
    */
   async register(req: Request, res: Response, next: NextFunction) {
     try {
-      const body = req.body || {};
-      const email = body.email ?? body.Email;
-      const password = body.password ?? body.Password;
-      const firstName = body.firstName ?? body.FirstName;
-      const lastName = body.lastName ?? body.LastName;
-      const phoneNumber = body.phoneNumber ?? body.PhoneNumber;
-      const countryCode = body.countryCode ?? body.CountryCode;
-      const gender = body.gender ?? body.Gender;
+      const fields: (keyof RegisterData)[] = ['email', 'password', 'firstName', 'lastName', 'phoneNumber', 'countryCode', 'gender'];
+      const normalized = normalizeBodyFields<RegisterData>(req.body || {}, fields);
 
       // Все поля обязательны!
+      const { email, password, firstName, lastName, phoneNumber, countryCode, gender } = normalized;
       if (!email || !password || !firstName || !lastName || !phoneNumber || !countryCode || !gender) {
-        return res.status(400).json({ error: 'Все поля email, password, firstName, lastName, phoneNumber, countryCode, gender обязательны' });
+        throw new BadRequestError('Все поля email, password, firstName, lastName, phoneNumber, countryCode, gender обязательны');
       }
+
       if (String(password).length < 6) {
-        return res.status(400).json({ error: 'Пароль должен содержать минимум 6 символов' });
+        throw new BadRequestError('Пароль должен содержать минимум 6 символов');
       }
-      const registerData: RegisterData = {
-        email, password, firstName, lastName, phoneNumber, countryCode, gender,
-      };
-      try {
-        await authService.register(registerData);
-        return res.status(200).send();
-      } catch (error: any) {
-        return res.status(400).json({ error: error.message || 'Bad Request' });
+
+      await authService.register(normalized as RegisterData);
+      sendNoContent(res);
+    } catch (error: any) {
+      if (error instanceof BadRequestError) {
+        handleControllerError(error, res, 'Bad Request', 400);
+      } else {
+        next(error);
       }
-    } catch (error) {
-      return next(error);
     }
   }
 
@@ -44,24 +40,23 @@ class AccountController {
    */
   async login(req: Request, res: Response, next: NextFunction) {
     try {
-      const body = req.body || {};
-      const email = body.email ?? body.Email;
-      const password = body.password ?? body.Password;
+      const normalized = normalizeBodyFields<{ email: string; password: string }>(req.body || {}, ['email', 'password']);
+      const { email, password } = normalized;
+
       if (!email || !password) {
-        return res.status(400).json({ error: 'Email и пароль обязательны' });
+        throw new BadRequestError('Email и пароль обязательны');
       }
-      try {
-        const result = await authService.login({ email, password });
-        // .NET: возвращает только Token
-        return res.status(200).json({ token: result.token });
-      } catch (error: any) {
-        if (error.name === 'UnauthorizedError') {
-          return res.status(401).json({ error: error.message || 'Unauthorized' });
-        }
-        return res.status(400).json({ error: error.message || 'Bad Request' });
+
+      const result = await authService.login({ email, password });
+      sendSuccess(res, { token: result.token });
+    } catch (error: any) {
+      if (error.name === 'UnauthorizedError') {
+        handleControllerError(error, res, 'Unauthorized', 401);
+      } else if (error instanceof BadRequestError) {
+        handleControllerError(error, res, 'Bad Request', 400);
+      } else {
+        next(error);
       }
-    } catch (error) {
-      return next(error);
     }
   }
 
@@ -72,19 +67,19 @@ class AccountController {
   async getProfile(req: Request, res: Response, next: NextFunction) {
     try {
       if (!req.user) {
-        return res.status(401).json({ error: 'Пользователь не найден в запросе' });
+        throw new BadRequestError('Пользователь не найден в запросе');
       }
-      try {
-        const profile = await authService.getProfile(req.user.userId);
-        return res.status(200).json(profile);
-      } catch (error: any) {
-        if (error.name === 'NotFoundError') {
-          return res.status(404).json({ error: error.message || 'User not found' });
-        }
-        return res.status(500).json({ error: error.message || 'Ошибка сервера' });
+
+      const profile = await authService.getProfile(req.user.userId);
+      sendSuccess(res, profile);
+    } catch (error: any) {
+      if (error.name === 'NotFoundError') {
+        handleControllerError(error, res, 'User not found', 404);
+      } else if (error instanceof BadRequestError) {
+        handleControllerError(error, res, 'Ошибка сервера', 401);
+      } else {
+        next(error);
       }
-    } catch (error) {
-      return next(error);
     }
   }
 
@@ -96,48 +91,45 @@ class AccountController {
     try {
       const { token } = req.body;
       if (!token) {
-        return res.status(400).json({ error: 'Token is required' });
+        throw new BadRequestError('Token is required');
       }
-      try {
-        const newToken = await authService.refreshToken(token);
-        // .NET: возвращает { Token }
-        return res.status(200).json({ token: newToken });
-      } catch (error: any) {
-        if (error.name === 'UnauthorizedError') {
-          return res.status(401).json({ error: error.message || 'Unauthorized' });
-        }
-        return res.status(400).json({ error: error.message || 'Bad Request' });
+
+      const newToken = await authService.refreshToken(token);
+      sendSuccess(res, { token: newToken });
+    } catch (error: any) {
+      if (error.name === 'UnauthorizedError') {
+        handleControllerError(error, res, 'Unauthorized', 401);
+      } else if (error instanceof BadRequestError) {
+        handleControllerError(error, res, 'Bad Request', 400);
+      } else {
+        next(error);
       }
-    } catch (error) {
-      return next(error);
     }
   }
 
-  // PUT /api/account/profile
+  /**
+   * PUT /api/account/profile
+   * Обновление профиля текущего пользователя
+   */
   async updateProfile(req: Request, res: Response, next: NextFunction) {
     try {
       if (!req.user) {
-        return res.status(401).json({ error: 'Пользователь не найден в запросе' });
+        throw new BadRequestError('Пользователь не найден в запросе');
       }
-      try {
-        const body = req.body || {};
-        const normalized = {
-          firstName: body.firstName ?? body.FirstName,
-          lastName: body.lastName ?? body.LastName,
-          phoneNumber: body.phoneNumber ?? body.PhoneNumber,
-          countryCode: body.countryCode ?? body.CountryCode,
-          gender: body.gender ?? body.Gender,
-        };
-        const profile = await authService.updateProfile(req.user.userId, normalized);
-        return res.status(200).json(profile);
-      } catch (error: any) {
-        if (error.name === 'NotFoundError') {
-          return res.status(404).json({ error: error.message || 'User not found' });
-        }
-        return res.status(400).json({ error: error.message || 'Bad Request' });
+
+      const fields = ['firstName', 'lastName', 'phoneNumber', 'countryCode', 'gender'] as const;
+      const normalized = normalizeBodyFields(req.body || {}, fields);
+      const profile = await authService.updateProfile(req.user.userId, normalized);
+      
+      sendSuccess(res, profile);
+    } catch (error: any) {
+      if (error.name === 'NotFoundError') {
+        handleControllerError(error, res, 'User not found', 404);
+      } else if (error instanceof BadRequestError) {
+        handleControllerError(error, res, 'Bad Request', 400);
+      } else {
+        next(error);
       }
-    } catch (error) {
-      return next(error);
     }
   }
 }
